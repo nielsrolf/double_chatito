@@ -20,8 +20,8 @@ data_dir = sys.argv[2]
 
 
 # create temp dir
-tmp_dir = ".tmp" + uuid4().hex[:5]
-final_ch_dir = uuid4().hex[:5]
+tmp_dir = ".tmp" #+ uuid4().hex[:5]
+final_ch_dir = ".final" # uuid4().hex[:5]
 json_dir = os.path.join(tmp_dir, "json")
 
 os.makedirs(tmp_dir, exist_ok=True)
@@ -30,6 +30,22 @@ os.makedirs(json_dir , exist_ok=True)
 os.makedirs(data_dir , exist_ok=True)
 
 # process once with output to temp dir
+
+
+def parse_python(line):
+    match = re.match("(.*)<python>(.*)</python>(.*)", line)
+    if match is None:
+        return [line]
+    pre, code, suff = match.group(1, 2, 3)
+    content = eval(code)
+    print(code, "=>", content)
+    if isinstance(content, list):
+        lines = ["{}{}{}\n".format(pre, c, suff) for c in content]
+    else:
+        lines = ["{}{}{}".format(pre, content, suff)]
+    print(line, "=>", lines)
+    return lines
+
 
 
 def chatito2temp(src_path, target_path):
@@ -54,13 +70,15 @@ def chatito2temp(src_path, target_path):
                     )
 
                 else:
-                    target.write(line)
-                    if re.match("^    .*", line) is None:
-                        if re.match("^@.*", line) is not None:
-                            after_toplevel = True
-                            slots += "\n"
-                    if after_toplevel:
-                        slots += line
+                    lines = parse_python(line)
+                    for parsed_line in lines:
+                        target.write(parsed_line)
+                        if re.match("^    .*", parsed_line) is None:
+                            if re.match("^@.*", parsed_line) is not None:
+                                after_toplevel = True
+                                slots += "\n"
+                        if after_toplevel:
+                            slots += parsed_line
     return intent_definition, slots
 
 
@@ -115,4 +133,4 @@ run_chatito_dir(final_ch_dir)
 
 # delete tmp dir
 shutil.rmtree(tmp_dir)
-shutil.rmtree(final_ch_dir)
+#shutil.rmtree(final_ch_dir)
